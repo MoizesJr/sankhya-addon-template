@@ -1,0 +1,11 @@
+<dashboard titulo="DASHBOARD TEMPLATE" descricao="" grupo="TEMPLATE"><layout>
+  <container orientacao="V" tamanhoRelativo="100">
+    <gadget id="127" />
+  </container>
+</layout><gadgetSS nugdg="127" titulo="DASHBOARD TEMPLATE" descricao="" categoria="Addon Template" urlcomponente=""><gadget><prompt-parameters><parameter id="P_PERIODO" description="Período" metadata="datePeriod" required="true" keep-last="true" keep-date="false" show-inactives="false" label="P_PERIODO : Período" order="0" /></prompt-parameters><level id="02U" description="Principal"><container orientacao="V" tamanhoRelativo="100"><container orientacao="V" tamanhoRelativo="30.68661296509398"><simple-value id="svl_030"><expression type="sql" data-source="MGEDS"><![CDATA[SELECT COUNT (*) AS TOTAL_GERAL
+FROM TPL_ATENDIMENTO VG 
+WHERE TRUNC(CAST(VG.DATA_CRIACAO AS DATE)) BETWEEN :P_PERIODO.INI AND :P_PERIODO.FIN]]></expression><metadata><field name="TOTAL_GERAL" label="Total Geral" type="I" visible="true" useFooter="false" /></metadata><value-expression><![CDATA[<div style='text-align: center;'>Período: :P_PERIODO.INI até :P_PERIODO.FIN
+Total Geral: $TOTAL_GERAL]]></value-expression></simple-value></container><container orientacao="V" tamanhoRelativo="70.32348804500702"><chart id="cht_01S" type="column" nroColuna="6"><title><![CDATA[Atendimentos]]></title><expression type="sql" data-source="MGEDS"><![CDATA[SELECT COUNT (*) AS TOTAL_GERAL
+FROM TPL_ATENDIMENTO AT 
+WHERE TRUNC(CAST(AT.DATA_CRIACAO AS DATE)) BETWEEN :P_PERIODO.INI AND :P_PERIODO.FIN
+ORDER BY 1 DESC]]></expression><metadata><field name="TOTAL_GERAL" label="Total Geral" type="I" visible="true" useFooter="false" /></metadata><horizontal-axis><category field="" rotation="0" dropLabel="false"><initView value="first" /><title>Atendimentos</title></category></horizontal-axis><series><serie type="column"><xField>$TOTAL_GERAL</xField><yField>$TOTAL_GERAL</yField><color>0x000099</color></serie></series></chart></container></container></level></gadget></gadgetSS></dashboard>
