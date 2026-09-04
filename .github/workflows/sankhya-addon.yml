@@ -6,16 +6,20 @@ on:
   pull_request:
   workflow_dispatch:
     inputs:
-      deploy_homologacao:
-        description: "Executar deploy no ambiente de homologacao"
+      acao:
+        description: "Operacao a executar"
         required: true
-        default: false
-        type: boolean
-      publish:
-        description: "Publicar apos o deploy de homologacao"
-        required: true
-        default: false
-        type: boolean
+        default: build
+        type: choice
+        options:
+          - build
+          - deploy_homologacao
+          - publish
+      confirmar_publicacao:
+        description: "Digite PUBLICAR para confirmar a publicacao"
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
@@ -54,7 +58,7 @@ jobs:
   deploy_homologacao:
     name: Deploy homologacao
     needs: build
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.deploy_homologacao }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.acao == 'deploy_homologacao' && github.ref == 'refs/heads/main' }}
     runs-on: self-hosted
     environment: homologacao
     env:
@@ -91,20 +95,10 @@ jobs:
         shell: pwsh
         run: .\gradlew.bat --no-daemon clean deployAddon
 
-  validar_homologacao:
-    name: Validar homologacao
-    needs: deploy_homologacao
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish && needs.deploy_homologacao.result == 'success' }}
-    runs-on: ubuntu-latest
-    environment: homologacao-validacao
-    steps:
-      - name: Aprovacao manual da homologacao
-        run: echo "Homologacao aprovada manualmente para publicacao."
-
   publish:
     name: Publicacao
-    needs: [build, deploy_homologacao, validar_homologacao]
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish && needs.deploy_homologacao.result == 'success' && needs.validar_homologacao.result == 'success' }}
+    needs: build
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.acao == 'publish' && inputs.confirmar_publicacao == 'PUBLICAR' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     environment: publicacao
     env:
