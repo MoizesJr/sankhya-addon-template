@@ -1,6 +1,7 @@
-# Idempotencia futura para e-mail ao vendedor
+# Idempotencia para e-mail ao vendedor
 
-Esta primeira versao do POC nao implementa persistencia de idempotencia e nao altera banco.
+Esta versao do POC implementa idempotencia temporaria por consulta preventiva na fila nativa `TMDFMG`.
+Ela nao cria tabela, nao altera banco e nao escreve diretamente em tabelas internas do Sankhya.
 
 ## Resultado validado em ambiente local
 
@@ -28,6 +29,23 @@ Ressalvas do POC:
 - Esta versao ainda nao anexa XML.
 - Esta versao ainda nao valida autorizacao SEFAZ antes do envio.
 - Esta versao nao deve enviar e-mail quando o evento de confirmacao retornar erro, exceto se a flag temporaria `PERMITIR_ENVIO_COM_ERRO_EVENTO_POC` for ativada explicitamente.
+
+## Idempotencia temporaria do POC
+
+Antes de chamar `FilaMsgUtil.enviaEmail(...)`, o POC consulta a `TMDFMG` por:
+
+- `EMAIL` igual ao e-mail do vendedor.
+- `ASSUNTO` igual a `Nota fiscal confirmada - NUNOTA {nunota}`.
+
+Se qualquer registro for encontrado, independentemente de `STATUS`, `MSGERRO` ou numero de tentativas, o POC considera que a notificacao ja foi criada e nao chama novamente o gateway.
+
+No SQL Server local, a coluna `TMDFMG.ASSUNTO` foi identificada como `text`, por isso a consulta do POC usa conversao para tipo textual comparavel antes de aplicar igualdade com o assunto exato. Essa adaptacao e especifica do POC/local e nao deve ser tratada como estrategia multi-banco definitiva.
+
+Essa protecao e temporaria/fraca porque depende da fila interna do Sankhya, do texto do assunto e da permanencia dos registros na `TMDFMG`. Ela tambem nao elimina totalmente condicao de corrida em confirmacoes concorrentes.
+
+Nao usar consulta na `TMDFMG` como estrategia definitiva de producao.
+
+## Idempotencia recomendada para producao
 
 Para uma versao segura de producao, criar uma tabela propria no Dicionario de Dados, por exemplo `AD_ENV_DANFE_VEND`, com chave unica para:
 

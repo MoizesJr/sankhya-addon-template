@@ -14,13 +14,17 @@ public class EnvioEmailVendedorService {
     private static final Logger log = Logger.getLogger(EnvioEmailVendedorService.class.getName());
 
     private final EmailVendedorGateway emailGateway;
+    private final EmailVendedorIdempotenciaRepository idempotenciaRepository;
 
     public EnvioEmailVendedorService() {
-        this(new EmailVendedorGateway());
+        this(new EmailVendedorGateway(), new EmailVendedorIdempotenciaRepository());
     }
 
-    EnvioEmailVendedorService(EmailVendedorGateway emailGateway) {
+    EnvioEmailVendedorService(
+            EmailVendedorGateway emailGateway,
+            EmailVendedorIdempotenciaRepository idempotenciaRepository) {
         this.emailGateway = emailGateway;
+        this.idempotenciaRepository = idempotenciaRepository;
     }
 
     public void processar(BigDecimal nunota) {
@@ -74,6 +78,14 @@ public class EnvioEmailVendedorService {
                     numero(nota, "VLRNOTA"),
                     texto(vendedor, "APELIDO"),
                     emailVendedor);
+
+            String assunto = request.getAssunto();
+            if (idempotenciaRepository.jaExisteNaFila(facade, emailVendedor, assunto)) {
+                log.info("Notificacao de vendedor ja existe na fila. E-mail nao sera duplicado. NUNOTA="
+                        + nunota + ", CODVEND=" + codVend + ", EMAIL=" + emailVendedor
+                        + ", ASSUNTO=" + assunto);
+                return;
+            }
 
             try {
                 log.info("Nota validada como confirmada. Enfileirando e-mail do vendedor. NUNOTA=" + nunota + ", CODVEND=" + codVend);
