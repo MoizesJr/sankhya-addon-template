@@ -15,16 +15,19 @@ public class EnvioEmailVendedorService {
 
     private final EmailVendedorGateway emailGateway;
     private final EmailVendedorIdempotenciaRepository idempotenciaRepository;
+    private final EmailVendedorDanfeGateway danfeGateway;
 
     public EnvioEmailVendedorService() {
-        this(new EmailVendedorGateway(), new EmailVendedorIdempotenciaRepository());
+        this(new EmailVendedorGateway(), new EmailVendedorIdempotenciaRepository(), new EmailVendedorDanfeGateway());
     }
 
     EnvioEmailVendedorService(
             EmailVendedorGateway emailGateway,
-            EmailVendedorIdempotenciaRepository idempotenciaRepository) {
+            EmailVendedorIdempotenciaRepository idempotenciaRepository,
+            EmailVendedorDanfeGateway danfeGateway) {
         this.emailGateway = emailGateway;
         this.idempotenciaRepository = idempotenciaRepository;
+        this.danfeGateway = danfeGateway;
     }
 
     public void processar(BigDecimal nunota) {
@@ -87,6 +90,20 @@ public class EnvioEmailVendedorService {
                 return;
             }
 
+            if (EnvioEmailVendedorPocConfig.ENVIAR_DANFE_NFE_AUTORIZADA) {
+                if (!isNfeAutorizada(nota, nunota)) {
+                    return;
+                }
+                try {
+                    log.info("NF-e autorizada validada. Enfileirando e-mail do vendedor com DANFE. NUNOTA=" + nunota + ", CODVEND=" + codVend);
+                    danfeGateway.enfileirar(nota, request.getEmailVendedor(), assunto, request.getMensagem());
+                    log.info("E-mail de confirmacao de nota com DANFE enfileirado para vendedor. NUNOTA=" + nunota + ", CODVEND=" + codVend);
+                } catch (Exception e) {
+                    log.log(Level.WARNING, "Falha ao enfileirar e-mail com DANFE do vendedor. Confirmacao nao sera bloqueada. NUNOTA=" + nunota, e);
+                }
+                return;
+            }
+
             try {
                 log.info("Nota validada como confirmada. Enfileirando e-mail do vendedor. NUNOTA=" + nunota + ", CODVEND=" + codVend);
                 emailGateway.enfileirar(request);
@@ -110,6 +127,23 @@ public class EnvioEmailVendedorService {
 
     private boolean isMovimentoVenda(DynamicVO nota) {
         return EnvioEmailVendedorPocConfig.TIPO_MOVIMENTO_VENDA.equalsIgnoreCase(texto(nota, "TIPMOV"));
+    }
+
+    private boolean isNfeAutorizada(DynamicVO nota, BigDecimal nunota) {
+        String statusNfe = texto(nota, "STATUSNFE");
+        boolean chavePreenchida = !isBlank(texto(nota, "CHAVENFE"));
+        boolean protocoloPreenchido = !isBlank(texto(nota, "NUMPROTOC"));
+        boolean dataProtocoloPreenchida = valorPreenchido(nota, "DHPROTOC");
+        boolean autorizada = EnvioEmailVendedorPocConfig.STATUS_NFE_AUTORIZADA.equalsIgnoreCase(statusNfe)
+                && chavePreenchida
+                && protocoloPreenchido
+                && dataProtocoloPreenchida;
+        if (!autorizada) {
+            log.info("Nota ignorada porque NF-e ainda nao esta autorizada para envio de DANFE. NUNOTA=" + nunota
+                    + ", STATUSNFE=" + statusNfe + ", CHAVENFE_PREENCHIDA=" + chavePreenchida
+                    + ", NUMPROTOC_PREENCHIDO=" + protocoloPreenchido + ", DHPROTOC_PREENCHIDO=" + dataProtocoloPreenchida);
+        }
+        return autorizada;
     }
 
     private String localizarNomeParceiro(EntityFacade facade, DynamicVO nota) {
@@ -152,7 +186,21 @@ public class EnvioEmailVendedorService {
         }
     }
 
+    private boolean valorPreenchido(DynamicVO vo, String propriedade) {
+        try {
+            Object valor = vo == null ? null : vo.getProperty(propriedade);
+            if (valor == null) {
+                return false;
+            }
+            return !String.valueOf(valor).trim().isEmpty();
+        } catch (Exception e) {
+            log.log(Level.FINE, "Falha ao ler propriedade " + propriedade + " para validar preenchimento.", e);
+            return false;
+        }
+    }
+
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
     }
 }
+

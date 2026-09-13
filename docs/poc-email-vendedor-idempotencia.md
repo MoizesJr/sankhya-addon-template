@@ -45,6 +45,21 @@ Essa protecao e temporaria/fraca porque depende da fila interna do Sankhya, do t
 
 Nao usar consulta na `TMDFMG` como estrategia definitiva de producao.
 
+## DANFE nativo da NF-e
+
+Foi iniciado um fluxo isolado para enviar anexos nativos da NF-e/DANFE ao vendedor usando `ServicosNFeHelper2`.
+Esse fluxo fica desativado por padrao pela flag `ENVIAR_DANFE_NFE_AUTORIZADA = false`.
+
+Quando a flag for ativada em teste controlado, o service deve validar antes do envio:
+
+- `STATUSNFE = "A"`.
+- `CHAVENFE` preenchida.
+- `NUMPROTOC` preenchido.
+- `DHPROTOC` preenchido.
+
+O gateway experimental chama `ServicosNFeHelper2.build()`, `buildAnexosEmailNota(DynamicVO)` e `criaEmailNaFila(...)`.
+Ainda falta teste runtime com uma NF-e realmente autorizada para confirmar quais anexos nativos sao retornados e se a TOP/configuracao fiscal gera o DANFE esperado.
+
 ## Idempotencia recomendada para producao
 
 Para uma versao segura de producao, criar uma tabela propria no Dicionario de Dados, por exemplo `AD_ENV_DANFE_VEND`, com chave unica para:
@@ -63,3 +78,4 @@ Fluxo recomendado:
 
 Nao usar colecao `static` como mecanismo principal, porque ela perde estado em redeploy, restart e multiplas instancias.
 Nao inserir diretamente em tabelas internas de fila de mensagens do Sankhya.
+
